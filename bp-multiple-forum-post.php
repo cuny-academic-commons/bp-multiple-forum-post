@@ -3,6 +3,7 @@
 	Plugin Name: BuddyPress Multiple Forum Post
 	Description: Allows users to post to multiple BP Group forums at once
 	Version: 0.1
+	License: GPL-3.0
 */
 
 // Global for storing content of email for activity tied to creation of original topic
