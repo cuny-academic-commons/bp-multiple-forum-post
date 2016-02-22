@@ -178,7 +178,7 @@ function bpmfp_create_duplicate_topics( $topic_id ) {
 	// Give the original activity a meta value indicating that is has duplicates
 	bp_activity_add_meta( $original_activity_id, '_has_duplicates', true );
 	send_email_for_original_activity();
-	
+
 	// Create the activities for the duplicate topics
 	foreach( $duplicate_topics as $duplicate_topic ) {
 		// Create the activity for the topic @TODO - move into separate loop
@@ -421,7 +421,7 @@ add_filter( 'bp_has_activities', 'bpmfp_unhook_duplicate_removing_for_activity_t
  */
 function bpmfp_duplicate_post_message_notification( $content, $activity ) {
 	global $bpmfp_original_activity;
-	
+
 	if ( 'groups' !== $activity->component || 'bbp_topic_create' !== $activity->type ) {
 		return $content;
 	}
