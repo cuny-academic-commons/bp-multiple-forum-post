@@ -1,0 +1,10 @@
+.bbp-reply-content {
+	position: relative;
+}
+
+.posted-in-other-forums {
+	margin-top: 40px;
+	font-size: .9em;
+	text-align: right;
+	font-style: italic;
+}
