@@ -2,6 +2,7 @@
 /*
 	Plugin Name: BuddyPress Multiple Forum Post
 	Description: Allows users to post to multiple BP Group forums at once
+	Text Domain: bp-multiple-forum-post
 	Version: 0.1
 	License: GPL-3.0
 */
@@ -30,8 +31,8 @@ function bpmfp_show_other_groups() {
 	if ( $user_groups['total'] > 0) {
 		echo '<div id="crosspost-div">';
 		echo '<fieldset>';
-		echo '<legend>' . 'Post to multiple groups:' . '</legend>';
-		echo "<div>By selecting other groups below, you can post this same topic on their forums at the same time.</div>";
+		echo '<legend>' . __( 'Post to multiple groups:', 'bp-multiple-forum-post' ) . '</legend>';
+		echo "<div>" . __( 'By selecting other groups below, you can post this same topic on their forums at the same time.', 'bp-multiple-forum-post' ) . "</div>";
 		echo '<ul id="crosspost-groups">';
 		$current_group = groups_get_current_group();
 		$current_group_id = $current_group->id;
@@ -43,10 +44,11 @@ function bpmfp_show_other_groups() {
 				continue;
 			}
 			echo '<li>';
-			echo '<input type="checkbox" name="groups-to-post-to[]" value="' . $group->id . '">  ';
-			echo '<label for="group-' . $group->id . '">' . stripslashes( $group->name ) . '</label>';
+			echo '<input type="checkbox" name="groups-to-post-to[]" value="' . $group->id . '" id="group-' . $group->id . '">  ';
+			echo '<label for="group-' . $group->id . '">' . esc_html( stripslashes( $group->name ) ) . '</label>';
 			echo '</li>';
 		}
+		wp_nonce_field( 'post_to_multiple_forums', 'bp_multiple_forum_post' );
 		echo '</fieldset>';
 		echo '<a id="crosspost-show-more" style="display: none;" href="#">' . 'Show all' . '</a>';
 		echo '</div>';
@@ -56,6 +58,12 @@ add_action( 'bbp_theme_before_topic_form_submit_wrapper', 'bpmfp_show_other_grou
 
 // Create the duplicate topics and activities
 function bpmfp_create_duplicate_topics( $topic_id ) {
+	// Nonce check
+	if ( ! isset( $_POST['bp_multiple_forum_post'] )
+		|| ! wp_verify_nonce( $_POST['bp_multiple_forum_post'], 'post_to_multiple_forums' ) ) {
+		echo "Sorry, there was a problem verifying your request.";
+		exit();
+	}
 	// Don't do anything if the topic isn't being duplicated
 	if ( empty( $_POST['groups-to-post-to'] ) ) {
 		return;
@@ -88,6 +96,9 @@ function bpmfp_create_duplicate_topics( $topic_id ) {
 	// An array to store the activities associated with the duplicate topics
 	$activities = array();
 	foreach( $_POST['groups-to-post-to'] as $group_id ) {
+		if( !groups_is_user_member( bp_loggedin_user_id(), $group_id ) ) {
+			continue;
+		}
 		// Get the forum ID for the group to post the duplicate topic in
 		$group_forum_ids = groups_get_groupmeta( $group_id, 'forum_id' );
 		$group_forum_id = is_array( $group_forum_ids ) ? reset( $group_forum_ids ) : intval( $group_forum_ids );
@@ -109,8 +120,8 @@ function bpmfp_create_duplicate_topics( $topic_id ) {
 		$topic_data = array(
 			// Parent of the topic is the forum itself, not the group
 			'post_parent' => $group_forum_id,
-			'post_content' => $_POST["bbp_topic_content"],
-			'post_title' => $_POST["bbp_topic_title"],
+			'post_content' => esc_attr( $_POST["bbp_topic_content"] ),
+			'post_title' => esc_attr( $_POST["bbp_topic_title"] ),
 			'tax_input' => $terms,
 		);
 		$topic_meta = array(
@@ -178,7 +189,7 @@ function bpmfp_create_duplicate_topics( $topic_id ) {
 	// Give the original activity a meta value indicating that is has duplicates
 	bp_activity_add_meta( $original_activity_id, '_has_duplicates', true );
 	send_email_for_original_activity();
-
+	
 	// Create the activities for the duplicate topics
 	foreach( $duplicate_topics as $duplicate_topic ) {
 		// Create the activity for the topic @TODO - move into separate loop
@@ -266,11 +277,11 @@ function bpmfp_add_links_to_duplicates_forums_to_activity_action_string( $action
 					$activity_forum_name = get_post_field( 'post_title', $activity_forum_id, 'raw' );
 
 					if ( $num_duplicates == 1 ) {
-						$action .= " and " . '<a href="' . $activity_forum_link . '">' . $activity_forum_name . "</a>";
+						$action .= " " . __( 'and', 'bp-multiple-forum-post') . ' <a href="' . esc_url( $activity_forum_link ) . '">' . esc_html( $activity_forum_name ) . "</a>";
 					} elseif ( $activity_index == $num_duplicates - 1 ) {
-						$action .= ", and " . '<a href="' . $activity_forum_link . '">' . $activity_forum_name . "</a>";
+						$action .= ", " . __( 'and', 'bp-multiple-forum-post') . ' <a href="' . esc_url( $activity_forum_link ) . '">' . esc_html( $activity_forum_name ) . "</a>";
 					} else {
-						$action .= ", " . '<a href="' . $activity_forum_link . '">' . $activity_forum_name . "</a>";
+						$action .= ", " . __( 'and', 'bp-multiple-forum-post') . ' <a href="' . esc_url( $activity_forum_link ) . '">' . esc_html( $activity_forum_name ) . "</a>";
 					}
 				}
 			}
@@ -421,7 +432,7 @@ add_filter( 'bp_has_activities', 'bpmfp_unhook_duplicate_removing_for_activity_t
  */
 function bpmfp_duplicate_post_message_notification( $content, $activity ) {
 	global $bpmfp_original_activity;
-
+	
 	if ( 'groups' !== $activity->component || 'bbp_topic_create' !== $activity->type ) {
 		return $content;
 	}
@@ -535,7 +546,7 @@ function bpmfp_get_this_topic_also_posted_in_message( $topic_ids, $context = 'al
 		// make sure the array is 0-indexed, and isn't missing any indices
 		$all_topic_ids = array_values( $topic_ids );
 
-		$return_message = 'This topic was also posted in: ';
+		$return_message = __( 'This topic was also posted in:', 'bp-multiple-forum-post' );
 		if ( $context === 'forum_topic' ) {
 			// set up the return div
 			$return_message = '<div class="posted-in-other-forums">' . $return_message;
@@ -558,9 +569,9 @@ function bpmfp_get_this_topic_also_posted_in_message( $topic_ids, $context = 'al
 			// print the forum name, linking it to the other topic's permalink if the user has permission to access it
 			if ( $forum_name ) {
 				if ( $topic_link && ( $context === 'forum_topic' || $context === 'email' ) ) {
-					$return_message .= '<a href="' . $topic_link . '">';
+					$return_message .= ' <a href="' . esc_url( $topic_link ) . '">';
 				}
-				$return_message .= $forum_name;
+				$return_message .= esc_html( $forum_name );
 				if ( $topic_link && ( $context === 'forum_topic' || $context === 'email' ) ) {
 					$return_message .= '</a>';
 				}
@@ -581,3 +592,8 @@ function bpmfp_get_this_topic_also_posted_in_message( $topic_ids, $context = 'al
 	}
 	return $return_message;
 }
+
+function bpmfp_load_textdomain() {
+	load_plugin_textdomain( 'bp-multiple-forum-post' );
+}
+add_action( 'plugins_loaded', 'bpmfp_load_textdomain' );
