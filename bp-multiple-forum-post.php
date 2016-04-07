@@ -58,16 +58,18 @@ add_action( 'bbp_theme_before_topic_form_submit_wrapper', 'bpmfp_show_other_grou
 
 // Create the duplicate topics and activities
 function bpmfp_create_duplicate_topics( $topic_id ) {
+	// Don't do anything if the topic isn't being duplicated
+	if ( empty( $_POST['groups-to-post-to'] ) ) {
+		return;
+	}
+
 	// Nonce check
 	if ( ! isset( $_POST['bp_multiple_forum_post'] )
 		|| ! wp_verify_nonce( $_POST['bp_multiple_forum_post'], 'post_to_multiple_forums' ) ) {
 		echo "Sorry, there was a problem verifying your request.";
 		exit();
 	}
-	// Don't do anything if the topic isn't being duplicated
-	if ( empty( $_POST['groups-to-post-to'] ) ) {
-		return;
-	}
+
 	// Check to make sure buddypress is turned on
 	if ( false === function_exists( 'buddypress' ) ) {
 		return;
