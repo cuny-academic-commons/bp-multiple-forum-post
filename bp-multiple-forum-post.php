@@ -4,11 +4,17 @@
 	Description: Allows users to post to multiple BP Group forums at once
 	Text Domain: bp-multiple-forum-post
 	Version: 0.1
-	License: GPL-3.0
 */
 
 // Global for storing content of email for activity tied to creation of original topic
 global $bpmfp_original_activity;
+
+function bpmfp_init() {
+	if( function_exists( 'is_buddypress' ) ) {
+		include_once( plugin_dir_path( __FILE__ ) . '/functions.php' );
+	}
+}
+add_action( 'init', 'bpmfp_init' );
 
 function bpmfp_show_other_groups() {
 	if ( bbp_is_topic_edit() ) {
@@ -266,68 +272,31 @@ function bpmfp_add_links_to_duplicates_forums_to_activity_action_string( $action
 			// Fill in any blanks in the array resulting from unset-ing
 			$duplicate_activities = array_values( $duplicate_activities );
 
-			// If there are any duplicates left, go through and add the forum name and a link to it for each of the duplicate activities,
-			// accounting for how many total activities there are and where we are in the list
-			$num_duplicates = count( $duplicate_activities );
-			if ( $num_duplicates >= 1 ) {
-				$action = str_replace('forum', 'forums', $action);
-				foreach ( $duplicate_activities as $activity_index => $duplicate_activity ) {
-					$activity_group_id = $duplicate_activity->item_id;
-					$activity_forum_ids = groups_get_groupmeta( $activity_group_id, 'forum_id' );
-					$activity_forum_id = is_array( $activity_forum_ids ) ? reset( $activity_forum_ids ) : intval( $activity_forum_ids );
-					$activity_forum_link = bbp_get_forum_permalink( $activity_forum_id );
-					$activity_forum_name = get_post_field( 'post_title', $activity_forum_id, 'raw' );
-
-					if ( $num_duplicates == 1 ) {
-						$action .= " " . __( 'and', 'bp-multiple-forum-post') . ' <a href="' . esc_url( $activity_forum_link ) . '">' . esc_html( $activity_forum_name ) . "</a>";
-					} elseif ( $activity_index == $num_duplicates - 1 ) {
-						$action .= ", " . __( 'and', 'bp-multiple-forum-post') . ' <a href="' . esc_url( $activity_forum_link ) . '">' . esc_html( $activity_forum_name ) . "</a>";
-					} else {
-						$action .= ", " . __( 'and', 'bp-multiple-forum-post') . ' <a href="' . esc_url( $activity_forum_link ) . '">' . esc_html( $activity_forum_name ) . "</a>";
-					}
+			if ( count( $duplicate_activities ) >= 1 ) {
+				$topic_author_link = bbp_get_user_profile_link( $activity->user_id  );
+				$topic_permalink = bbp_get_topic_permalink( $activity->secondary_item_id );
+				$topic_title = $activity->content;
+				$topic_link      = '<a href="' . $topic_permalink . '">' . $topic_title . '</a>';
+				
+				$original_forum_id = bpmfp_get_forum_id_for_activity( $activity );
+				$original_forum_name = get_post_field( 'post_title', $original_forum_id, 'raw' );
+				$original_forum_permalink = bbp_get_forum_permalink( $original_forum_id );
+				$original_forum_link = '<a href="' . esc_url( $original_forum_permalink ) . '">' . $original_forum_name . '</a>';
+				
+				$dupe_topic_links = array();
+				foreach( $duplicate_activities as $dupe ) {
+					$dupe_topic_permalink = bbp_get_topic_permalink( $dupe->secondary_item_id );
+					$dupe_forum_id = bpmfp_get_forum_id_for_activity( $dupe );
+					$dupe_forum_name = get_post_field( 'post_title', $dupe_forum_id, 'raw' );
+					$dupe_topic_links[] = '<a href="' . esc_url( $dupe_topic_permalink ) . '">' . $dupe_forum_name . "</a>";
 				}
+				$action = sprintf( esc_html__( '%1$s started the topic %2$s in the forums: %3$s, %4$s.', 'bbpress' ), $topic_author_link, $topic_link, $original_forum_link, implode( ',', $dupe_topic_links ) );
 			}
 		}
 	}
 	return $action;
 }
 add_filter( 'bp_get_activity_action', 'bpmfp_add_links_to_duplicates_forums_to_activity_action_string', 10, 2 );
-
-// A helper function to identify activities that should be hidden from the feed, because
-// they're duplicates of another activity
-function bpmfp_get_duplicate_activities( $activities, $queried_activity_ids ) {
-	// Set up an array for storing the IDs of activities we want to hide
-	$activities_to_hide = array();
-
-	foreach ( $activities as $activity_index => $activity_item ) {
-		// If we already know we're hiding this activity, go on to the next one
-		if ( in_array( $activity_item->id, $activities_to_hide ) ) {
-			continue;
-		}
-
-		if ( bp_activity_get_meta( $activity_item->id, '_duplicate_of', true ) ) {
-			// If this activity is a duplicate, and the original is in the queried activities, hide this one
-			$duplicate_of = bp_activity_get_meta( $activity_item->id, '_duplicate_of', true );
-			if ( in_array( $duplicate_of, $queried_activity_ids ) ) {
-				$activities_to_hide[] = $activity_item->id;
-			}
-
-			// If there are other duplicates of the same activity, hide them (regardless of if the original is in the queried activities or not)
-			$other_duplicates = BP_Activity_Activity::get( array( 'meta_query' => array( array( 'key' => '_duplicate_of', 'value' => $duplicate_of ) ) ) );
-			if ( isset( $other_duplicates ) ) {
-				$other_duplicate_activities = $other_duplicates['activities'];
-				foreach( $other_duplicate_activities as $duplicate_activity ) {
-					// If the duplicate activity is not the same as the activity we started with, and it's in the queried activities, hide it
-					if ( $duplicate_activity->id != $activity_item->id && in_array( $duplicate_activity->id, $queried_activity_ids ) ) {
-						$activities_to_hide[] = $duplicate_activity->id;
-					}
-				}
-			}
-		}
-	}
-
-	return $activities_to_hide;
-}
 
 // Function to modify activity feeds (beside groups' activity feeds) to remove the duplicates
 // activities created by this plugin for cross-posted topics
