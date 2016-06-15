@@ -56,7 +56,7 @@ function bpmfp_show_other_groups() {
 		}
 		wp_nonce_field( 'post_to_multiple_forums', 'bp_multiple_forum_post' );
 		echo '</fieldset>';
-		echo '<a id="crosspost-show-more" style="display: none;" href="#">' . 'Show all' . '</a>';
+		echo '<a id="crosspost-show-more" style="display: none;" href="#">' . __( 'Show all', 'bp-multiple-forum-post' ) . '</a>';
 		echo '</div>';
 	}
 }
@@ -72,7 +72,7 @@ function bpmfp_create_duplicate_topics( $topic_id ) {
 	// Nonce check
 	if ( ! isset( $_POST['bp_multiple_forum_post'] )
 		|| ! wp_verify_nonce( $_POST['bp_multiple_forum_post'], 'post_to_multiple_forums' ) ) {
-		echo "Sorry, there was a problem verifying your request.";
+		_e( 'Sorry, there was a problem verifying your request.', 'bp-multiple-forum-post' );
 		exit();
 	}
 
@@ -290,7 +290,7 @@ function bpmfp_add_links_to_duplicates_forums_to_activity_action_string( $action
 					$dupe_forum_name = get_post_field( 'post_title', $dupe_forum_id, 'raw' );
 					$dupe_topic_links[] = '<a href="' . esc_url( $dupe_topic_permalink ) . '">' . $dupe_forum_name . "</a>";
 				}
-				$action = sprintf( esc_html__( '%1$s started the topic %2$s in the forums: %3$s, %4$s.', 'bbpress' ), $topic_author_link, $topic_link, $original_forum_link, implode( ',', $dupe_topic_links ) );
+				$action = sprintf( esc_html__( '%1$s started the topic %2$s in the forums: %3$s, %4$s.', 'bp-multiple-forum-post' ), $topic_author_link, $topic_link, $original_forum_link, implode( ',', $dupe_topic_links ) );
 			}
 		}
 	}
