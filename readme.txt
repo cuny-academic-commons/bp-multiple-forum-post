@@ -1,4 +1,5 @@
 === BP Multiple Forum Post ===
+
 Contributors: boonebgorges, rjbaniel
 Tags: buddypress, bbpress, forums, cross-post
 Requires at least: 3.0.1
@@ -20,8 +21,6 @@ Users will also only see one entry in their activity feed. Similar to email noti
 Initial attachments and topic tags are copied to all of the created topics in each group forum. The topics aren't linked beyond that though: new replies and attachments, changes to topic status, etc., will only affect individual topics, not all of them.
 
 == Installation ==
-
-This section describes how to install the plugin and get it working.
 
 1. Upload the plugin files to the `/wp-content/plugins/plugin-name` directory, or install the plugin through the WordPress plugins screen directly.
 1. Activate the plugin through the 'Plugins' screen in WordPress
