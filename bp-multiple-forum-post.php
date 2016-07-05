@@ -6,15 +6,25 @@
 	Version: 0.1
 */
 
-// Global for storing content of email for activity tied to creation of original topic
-global $bpmfp_original_activity;
-
 function bpmfp_init() {
 	if( function_exists( 'is_buddypress' ) ) {
-		include_once( plugin_dir_path( __FILE__ ) . '/functions.php' );
+		include_once( plugin_dir_path( __FILE__ ) . 'includes/functions.php' );
 	}
 }
 add_action( 'init', 'bpmfp_init' );
+
+function bpmfp_get_other_groups_for_user( $user_id ) {
+	if ( ! $user_id ) {
+		return;
+	}
+	return groups_get_groups( array(
+		'user_id' => $user_id,
+		'per_page' => -1,
+		'type'=> 'alphabetical',
+		'show_hidden' => true,
+		'exclude' => array( bp_get_current_group_id() ),
+	) );	
+}
 
 function bpmfp_show_other_groups() {
 	if ( bbp_is_topic_edit() ) {
@@ -27,13 +37,7 @@ function bpmfp_show_other_groups() {
 
 	wp_enqueue_script( 'bpmfp', plugins_url( 'bp-multiple-forum-post/bpmfp.js' ), array( 'jquery' ), CAC_VERSION, true );
 	$user_id = bp_loggedin_user_id();
-	$user_groups = groups_get_groups( array(
-		'user_id' => $user_id,
-		'per_page' => -1,
-		'type'=> 'alphabetical',
-		'show_hidden' => true,
-		'exclude' => array( bp_get_current_group_id() ),
-	) );
+	$user_groups = bpmfp_get_other_groups_for_user( $user_id );
 	if ( $user_groups['total'] > 0) {
 		echo '<div id="crosspost-div">';
 		echo '<fieldset>';
@@ -63,47 +67,17 @@ function bpmfp_show_other_groups() {
 add_action( 'bbp_theme_before_topic_form_submit_wrapper', 'bpmfp_show_other_groups', 20 );
 
 // Create the duplicate topics and activities
-function bpmfp_create_duplicate_topics( $topic_id ) {
-	// Don't do anything if the topic isn't being duplicated
-	if ( empty( $_POST['groups-to-post-to'] ) ) {
-		return;
-	}
-
-	// Nonce check
-	if ( ! isset( $_POST['bp_multiple_forum_post'] )
-		|| ! wp_verify_nonce( $_POST['bp_multiple_forum_post'], 'post_to_multiple_forums' ) ) {
-		_e( 'Sorry, there was a problem verifying your request.', 'bp-multiple-forum-post' );
-		exit();
-	}
-
-	// Check to make sure buddypress is turned on
-	if ( false === function_exists( 'buddypress' ) ) {
-		return;
-	}
-
-	// Store the orignal activity for the topic creation for later use
-	$original_activity = BP_Activity_Activity::get( array(
-		'filter_query' => array(
-			'type' => 'bbp_topic_create',
-			'secondary_item_id' => $topic_id,
-		),
-	) );
-
-	// Create an array to hold information abouut the duplicate topics, for us in creating
+function bpmfp_create_duplicate_topics( $args ) {
+	$topic_id = $args['topic-id'];
+	$groups_to_post_to = $args['groups-to-post-to'];
+	$topic_tags = $args['topic-tags'];
+	$topic_title = $args['topic-title'];
+	$topic_content = $args['topic-content'];
+	// Create an array to hold information about the duplicate topics, for us in creating
 	// activities for them
 	$duplicate_topics = array();
-
-	// Bail if an activity wasn't created for the topic creation
-	if ( empty( $original_activity['activities'] ) ) {
-		return;
-	}
-	// Store the original activity ID for later use
-	$original_activity_id = $original_activity['activities'][0]->id;
-
 	//** foreach loop creates the duplicate topics
-	// An array to store the activities associated with the duplicate topics
-	$activities = array();
-	foreach( $_POST['groups-to-post-to'] as $group_id ) {
+	foreach( $groups_to_post_to as $group_id ) {
 		if( !groups_is_user_member( bp_loggedin_user_id(), $group_id ) ) {
 			continue;
 		}
@@ -114,9 +88,9 @@ function bpmfp_create_duplicate_topics( $topic_id ) {
 		// Code for adding tags taken from bbp_new_topic_handler in bbpress/includes/topics/functions.php
 		// Set up the arrays of information for and about the duplicate topic
 		$terms = '';
-		if ( bbp_allow_topic_tags() && !empty( $_POST['bbp_topic_tags'] ) ) {
+		if ( bbp_allow_topic_tags() && !empty( $topic_tags ) ) {
 			// Escape tag input
-			$terms = esc_attr( strip_tags( $_POST['bbp_topic_tags'] ) );
+			$terms = esc_attr( strip_tags( $topic_tags ) );
 			// Explode by comma
 			if ( strstr( $terms, ',' ) ) {
 				$terms = explode( ',', $terms );
@@ -128,8 +102,8 @@ function bpmfp_create_duplicate_topics( $topic_id ) {
 		$topic_data = array(
 			// Parent of the topic is the forum itself, not the group
 			'post_parent' => $group_forum_id,
-			'post_content' => esc_attr( $_POST["bbp_topic_content"] ),
-			'post_title' => esc_attr( $_POST["bbp_topic_title"] ),
+			'post_content' => esc_attr( $topic_content ),
+			'post_title' => esc_attr( $topic_title ),
 			'tax_input' => $terms,
 		);
 		$topic_meta = array(
@@ -161,7 +135,6 @@ function bpmfp_create_duplicate_topics( $topic_id ) {
 				}
 			}
 		}
-
 		// Update counts, etc. Taken from 'bbp_update_topic' in bbpress/includes/topics/functions.php
 		// Update poster IP
 		update_post_meta( $new_topic_id, '_bbp_author_ip', bbp_current_author_ip(), false );
@@ -192,14 +165,43 @@ function bpmfp_create_duplicate_topics( $topic_id ) {
 		$topic_info['group_id'] = $group_id;
 		$duplicate_topics[] = $topic_info;
 	}
+	bpmfp_create_duplicate_activities( $topic_id, $duplicate_topics );
+}
+add_action( 'wp_async_bbp_new_topic_post_extras', 'bpmfp_create_duplicate_topics' );
 
-	//* Activities
+function bpmfp_create_duplicate_activities( $original_topic_id, $duplicate_topics ) {
+	$bp = buddypress();
+
+	// Store the orignal activity for the topic creation for later use
+	$original_activity_query_results = BP_Activity_Activity::get( array(
+		'filter_query' => array(
+				'relation'	=> 'and',
+				array(
+					'column' 	=> 'type',
+					'value' 	=> 'bbp_topic_create'
+				),
+				array(
+					'column'	=> 'secondary_item_id',
+					'value'		=> $original_topic_id
+				),
+		),
+	) );
+	// Bail if an activity wasn't created for the topic creation
+	if ( empty( $original_activity_query_results['activities'] ) ) {
+		return;
+	}
+	// Store the original activity ID for later use
+	$original_activity_id = $original_activity_query_results['activities'][0]->id;
 	// Give the original activity a meta value indicating that is has duplicates
 	bp_activity_add_meta( $original_activity_id, '_has_duplicates', true );
-	send_email_for_original_activity();
+	// Send the email for the original activity
+	$original_activity = new BP_Activity_Activity( $original_activity_id );
+	ass_group_notification_activity( $original_activity );
 	
 	// Create the activities for the duplicate topics
 	foreach( $duplicate_topics as $duplicate_topic ) {
+		$bp->groups->current_group = groups_get_group( array( 'group_id' => $duplicate_topic['group_id'] ) );
+
 		// Create the activity for the topic @TODO - move into separate loop
 		$bbp_buddypress_activity = new BBP_BuddyPress_Activity;
 		$bbp_buddypress_activity->topic_create( $duplicate_topic['new_topic_id'], $duplicate_topic['group_forum_id'], array(), bp_loggedin_user_id() );
@@ -207,21 +209,9 @@ function bpmfp_create_duplicate_topics( $topic_id ) {
 		groups_update_last_activity( $duplicate_topic['group_id'] );
 
 		// Give the duplicate topic creation activity a meta value pointing to the activity for the topic it's a duplicate of
-		$activity_id = get_post_meta( $new_topic_id, '_bbp_activity_id', true );
+		$activity_id = get_post_meta( $duplicate_topic['new_topic_id'], '_bbp_activity_id', true );
+		$new_activity = new BP_Activity_Activity( $activity_id );
 		bp_activity_add_meta( $activity_id, '_duplicate_of', $original_activity_id );
-	}
-
-	// Add an alert for the user on next page load to let them know that the topic was successfully duplicated
-	$duplicate_topics = bpmfp_get_duplicate_topics_list( $topic_id );
-	$duplicate_topics_message = bpmfp_get_this_topic_also_posted_in_message( $duplicate_topics, 'alert' );
-	bp_core_add_message( $duplicate_topics_message, 'success' );
-}
-add_action( 'bbp_new_topic_post_extras', 'bpmfp_create_duplicate_topics' );
-
-function send_email_for_original_activity() {
-	global $bpmfp_original_activity;
-	if ( $bpmfp_original_activity ) {
-		ass_group_notification_activity( $bpmfp_original_activity );
 	}
 }
 
@@ -232,10 +222,14 @@ function bpmfp_set_activity_group_id( $args = array() ) {
 	$topic_id = $args['secondary_item_id'];
 	// Get the forum ID based on the topic ID
 	$forum_id = bbp_get_topic_forum_id( $topic_id );
+
 	// Get the group ID based on the forum ID
 	$group_ids = get_post_meta( $forum_id, '_bbp_group_ids', true );
+
+	// Get the group
 	$group_id = is_array( $group_ids ) ? reset( $group_ids ) : intval( $group_ids );
 
+	// Get the group
 	// Replace 'item_id' with the group ID for the group getting the duplicate
 	$args['item_id'] = $group_id;
 	return $args;
@@ -244,7 +238,7 @@ add_action( 'bbp_before_record_activity_parse_args', 'bpmfp_set_activity_group_i
 
 // Modify the activity strings in feeds (besides a group's activity feed) to include the names of
 // and links to forums where a topic was cross-posted
-function bpmfp_add_links_to_duplicates_forums_to_activity_action_string( $action, $activity ) {
+function bpmfp_add_duplicate_topics_to_activity_action_string( $action, $activity ) {
 	// Only fool around with this if we aren't in a groups' activity feed
 	if( ! bp_is_group() ) {
 		// Determine what activity, if any, we're looking for duplicates of - this activity itself or the activity this one is a duplicate of
@@ -290,17 +284,17 @@ function bpmfp_add_links_to_duplicates_forums_to_activity_action_string( $action
 					$dupe_forum_name = get_post_field( 'post_title', $dupe_forum_id, 'raw' );
 					$dupe_topic_links[] = '<a href="' . esc_url( $dupe_topic_permalink ) . '">' . $dupe_forum_name . "</a>";
 				}
-				$action = sprintf( esc_html__( '%1$s started the topic %2$s in the forums: %3$s, %4$s.', 'bp-multiple-forum-post' ), $topic_author_link, $topic_link, $original_forum_link, implode( ',', $dupe_topic_links ) );
+				$action = sprintf( esc_html__( '%1$s started the topic %2$s in the forums: %3$s, %4$s.', 'bp-multiple-forum-post' ), $topic_author_link, $topic_link, $original_forum_link, implode( ', ', $dupe_topic_links ) );
 			}
 		}
 	}
 	return $action;
 }
-add_filter( 'bp_get_activity_action', 'bpmfp_add_links_to_duplicates_forums_to_activity_action_string', 10, 2 );
+add_filter( 'bp_get_activity_action', 'bpmfp_add_duplicate_topics_to_activity_action_string', 10, 2 );
 
 // Function to modify activity feeds (beside groups' activity feeds) to remove the duplicates
 // activities created by this plugin for cross-posted topics
-function bpmfp_remove_duplicates_from_activity_stream( $activity, $r, $iterator = 0 ) {
+function bpmfp_remove_duplicate_activities_from_activity_stream( $activity, $r, $iterator = 0 ) {
 	// Only do this filter if we aren't on a group's page
 	if ( ! bp_is_group() ) {
 		// Create an array of the activity IDs for later use
@@ -383,7 +377,7 @@ function bpmfp_remove_duplicates_from_activity_stream( $activity, $r, $iterator 
  * Hook the duplicate-removing logic
 */
 function bpmfp_hook_duplicate_removing_for_activity_template( $args ) {
-	add_filter( 'bp_activity_get', 'bpmfp_remove_duplicates_from_activity_stream', 10, 2 );
+	add_filter( 'bp_activity_get', 'bpmfp_remove_duplicate_activities_from_activity_stream', 10, 2 );
 	return $args;
 }
 add_filter( 'bp_before_has_activities_parse_args', 'bpmfp_hook_duplicate_removing_for_activity_template' );
@@ -391,40 +385,34 @@ add_filter( 'bp_before_has_activities_parse_args', 'bpmfp_hook_duplicate_removin
  * Unhook the duplicate-removing logic.
  */
 function bpmfp_unhook_duplicate_removing_for_activity_template( $retval ) {
-	remove_filter( 'bp_activity_get', 'bpmfp_remove_duplicates_from_activity_stream', 10, 2 );
+	remove_filter( 'bp_activity_get', 'bpmfp_remove_duplicate_activities_from_activity_stream', 10, 2 );
 	return $retval;
 }
 add_filter( 'bp_has_activities', 'bpmfp_unhook_duplicate_removing_for_activity_template' );
 
 
 /**
- * Append duplicate posts message to email notifications, and save the content of the email
- * for the activity tied to the original topic, for until after its duplicates have been created
+ * Append duplicate posts message to email notifications
  */
-function bpmfp_duplicate_post_message_notification( $content, $activity ) {
-	global $bpmfp_original_activity;
-	
+function bpmfp_add_duplicate_topics_to_email_notification( $content, $activity ) {	
 	if ( 'groups' !== $activity->component || 'bbp_topic_create' !== $activity->type ) {
 		return $content;
 	}
 	$topic_id = $activity->secondary_item_id;
 	$all_topic_ids = bpmfp_get_duplicate_topics_list( $topic_id );
-
-	// If this is an original topic that's being duplicated, save its content for sending later
-	if ( empty( $all_topic_ids ) && !empty( $_POST['groups-to-post-to'] ) ) {
-		$bpmfp_original_activity = $activity;
-		return $content;
+	if ( empty( $all_topic_ids ) ) {
+		return;
 	}
 	$duplicate_post_message = "\n" . bpmfp_get_this_topic_also_posted_in_message( $all_topic_ids, 'email' );
 
 	return $content . $duplicate_post_message;
 }
-add_filter( 'bp_ass_activity_notification_content', 'bpmfp_duplicate_post_message_notification', 100, 2 );
+add_filter( 'bp_ass_activity_notification_content', 'bpmfp_add_duplicate_topics_to_email_notification', 100, 2 );
 
 /**
  * Ensure that GES does not send multiple emails to a given user for a given event.
  * And interrupt sending of email for activity tied to orginal topic, for sending after
- * its duplicates have been createds
+ * its duplicates have been created
  *
  * @since 1.0.0
  *
@@ -439,22 +427,19 @@ function bpmfp_send_bpges_notification_for_user( $send_it, $activity, $user_id )
 	if ( 'groups' !== $activity->component || 'bbp_topic_create' !== $activity->type ) {
 		return $send_it;
 	}
-	// If it's an original that's being duplicated, don't send it just yet!
+
 	$topic_id = $activity->secondary_item_id;
 	$all_topic_ids = bpmfp_get_duplicate_topics_list( $topic_id );
-	if ( empty( $all_topic_ids ) && !empty( $_POST['groups-to-post-to'] ) ) {
-		$send_it = false;
+	if ( empty( $all_topic_ids ) ) {
 		return $send_it;
 	}
+
 	if ( ! isset( $_bpmfp_bpges_sent ) ) {
 		$_bpmfp_bpges_sent = array();
 	}
 	if ( ! isset( $_bpmfp_bpges_sent[ $user_id ] ) ) {
 		$_bpmfp_bpges_sent[ $user_id ] = array();
 	}
-
-	// Get a list of all topics corresponding to this topic.
-	$all_topic_ids = bpmfp_get_duplicate_topics_list( $topic_id );
 
 	foreach ( $all_topic_ids as $all_topic_id ) {
 		// If an activity corresponding to this activity has already been triggered, bail.
@@ -467,6 +452,20 @@ function bpmfp_send_bpges_notification_for_user( $send_it, $activity, $user_id )
 	return $send_it;
 }
 add_filter( 'bp_ass_send_activity_notification_for_user', 'bpmfp_send_bpges_notification_for_user', 10, 3 );
+
+function bpmfp_interrupt_original_activity_notification( $send_it, $activity ) {
+	if ( 'groups' !== $activity->component || 'bbp_topic_create' !== $activity->type ) {
+		return $send_it;
+	}
+	// If it's an original that's being duplicated, don't send it just yet!
+	$topic_id = $activity->secondary_item_id;
+	$duplicate_topic_ids = bpmfp_get_duplicate_topics_list( $topic_id );
+	if ( empty( $duplicate_topic_ids ) && ! empty( $_POST['groups-to-post-to'] ) ) {
+		$send_it = false;
+	}
+	return $send_it;
+}
+add_filter( 'bp_ass_send_activity_notification_for_user', 'bpmfp_interrupt_original_activity_notification', 10, 2);
 
 function bpmfp_show_duplicate_groups_on_topics() {
 	// Only show on the first item in a thread - the topic.
@@ -489,7 +488,7 @@ add_action( 'bbp_theme_after_reply_content', 'bpmfp_show_duplicate_groups_on_top
 **/
 function bpmfp_get_duplicate_topics_list( $topic_id ) {
 	$duplicate_of = get_post_meta( $topic_id, '_duplicate_of', true );
-	$duplicates = get_post_meta($topic_id, '_duplicates', false );
+	$duplicates = get_post_meta( $topic_id, '_duplicates', false );
 	// don't enqueue the styling if we're creating an email notification
 	if ( current_filter() != 'bp_ass_activity_notification_content' ) {
 		wp_enqueue_style( 'bpmfp-css', plugins_url( 'bp-multiple-forum-post/bpmfp.css' ), array(), CAC_VERSION );
