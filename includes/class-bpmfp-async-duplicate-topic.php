@@ -1,16 +1,23 @@
 <?php
 
+/**
+ * Hooks in our asynchronous topic duplication logic.
+ *
+ * @see WP_Async_Task
+**/
 class BPMFP_Async_Duplicate_Topic extends WP_Async_Task {
+	// The action to hook our asynchronous request to.
 	protected $action = 'bbp_new_topic_post_extras';
 
+	/**
+	 * Prepare data submitted through New Topic form for the asynchronous duplicate topic request.
+	 * And make sure that this is a cross-post request, and that it's valid.
+	 *
+	 * @param Array $data The raw data passed by the bbp_new_topic_post_extras action hook.
+	 * @return Array The data to pass along as POST data in our asynchronous request.
+	**/
 	protected function prepare_data( $data ) {
-		// Nonce check
-		if ( ! isset( $_POST['bp_multiple_forum_post'] )
-				|| ! wp_verify_nonce( $_POST['bp_multiple_forum_post'], 'post_to_multiple_forums' ) ) {
-			_e( 'Sorry, there was a problem verifying your request.', 'bp-multiple-forum-post' );
-			exit();
-		}
-		// Check to make sure buddypress is turned on
+		// Check to make sure Buddypress is turned on
 		if ( false === function_exists( 'buddypress' ) ) {
 			return;
 		}
@@ -18,6 +25,13 @@ class BPMFP_Async_Duplicate_Topic extends WP_Async_Task {
 		if( empty( $groups_to_post_to ) ) {
 			return;
 		}
+		// Nonce check
+		if ( ! isset( $_POST['bp_multiple_forum_post'] )
+				|| ! wp_verify_nonce( $_POST['bp_multiple_forum_post'], 'post_to_multiple_forums' ) ) {
+			_e( 'Sorry, there was a problem verifying your request.', 'bp-multiple-forum-post' );
+			exit();
+		}
+
 		$topic_id = $data[0];
 		return array(
 					'topic-id' => $topic_id,
@@ -28,6 +42,14 @@ class BPMFP_Async_Duplicate_Topic extends WP_Async_Task {
 				);
 	}
 
+	/**
+	 * Do the wp_async_bbp_new_topic_post_extras action.
+	 *
+	 * Called during the asynchronous wp_http_post() request.
+	 * Passes along the data prepared in prepare_data() above to bpmfp_create_duplicate_topics().
+	 *
+	 * @see bpmfp_create_duplicate_topics()
+	**/
 	protected function run_action() {
 		$args = array();
 
