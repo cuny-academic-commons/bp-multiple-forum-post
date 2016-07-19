@@ -19,8 +19,6 @@ function bpmfp_init() {
 		require( plugin_dir_path( __FILE__ ) . 'includes/activity-feed.php' );
 		require( plugin_dir_path( __FILE__ ) . 'includes/email-notifications.php' );
 		bpmfp_register_async_action();
-
-		add_action( 'plugins_loaded', 'bpmfp_load_textdomain' );
 	}
 }
 add_action( 'init', 'bpmfp_init' );
@@ -290,3 +288,4 @@ add_action( 'bbp_theme_after_reply_content', 'bpmfp_add_duplicate_topics_to_foru
 function bpmfp_load_textdomain() {
 	load_plugin_textdomain( 'bp-multiple-forum-post' );
 }
+add_action( 'plugins_loaded', 'bpmfp_load_textdomain' );
