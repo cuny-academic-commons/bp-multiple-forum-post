@@ -15,7 +15,7 @@ function bpmfp_add_duplicate_topics_to_email_notification( $content, $activity )
 	$topic_id = $activity->secondary_item_id;
 	$all_topic_ids = bpmfp_get_duplicate_topics_ids( $topic_id );
 	if ( empty( $all_topic_ids ) ) {
-		return;
+		return $content;
 	}
 	$duplicate_post_message = "\n" . bpmfp_get_this_topic_also_posted_in_message( $all_topic_ids, 'email' );
 
