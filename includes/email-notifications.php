@@ -85,6 +85,18 @@ function bpmfp_interrupt_original_activity_notification( $send_it, $activity ) {
 	if ( empty( $duplicate_topic_ids ) && ! empty( $_POST['groups-to-post-to'] ) ) {
 		$send_it = false;
 	}
+
+	if ( true === $send_it ) {
+		/**
+		 * Hook for plugins to do something before BPMFP allows GES to send the email.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param BP_Activity_Activity $activity
+		 */
+		do_action( 'bpmfp_before_send', $activity );
+	}
+
 	return $send_it;
 }
 add_filter( 'bp_ass_send_activity_notification_for_user', 'bpmfp_interrupt_original_activity_notification', 10, 2);
