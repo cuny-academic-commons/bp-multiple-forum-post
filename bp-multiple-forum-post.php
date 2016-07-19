@@ -13,6 +13,8 @@
 **/
 function bpmfp_init() {
 	if ( function_exists( 'is_buddypress' ) ) {
+		define( 'BPMFP_VERSION', '1.0.0' );
+
 		require( plugin_dir_path( __FILE__ ) . 'includes/functions.php' );
 		require( plugin_dir_path( __FILE__ ) . 'includes/activity-feed.php' );
 		require( plugin_dir_path( __FILE__ ) . 'includes/email-notifications.php' );
@@ -57,7 +59,7 @@ function bpmfp_show_other_groups() {
 		return;
 	}
 
-	wp_enqueue_script( 'bpmfp', plugins_url( 'bp-multiple-forum-post/bpmfp.js' ), array( 'jquery' ), CAC_VERSION, true );
+	wp_enqueue_script( 'bpmfp', plugins_url( 'bp-multiple-forum-post/bpmfp.js' ), array( 'jquery' ), BPMFP_VERSION, true );
 	
 	$user_id = bp_loggedin_user_id();
 	$user_groups = bpmfp_get_other_groups_for_user( $user_id );

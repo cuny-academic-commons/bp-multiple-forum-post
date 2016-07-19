@@ -94,7 +94,7 @@ function bpmfp_get_this_topic_also_posted_in_message( $topic_ids, $context = 'al
 
 	// Don't enqueue the styling if we're creating an email notification
 	if ( $context != 'email' ) {
-		wp_enqueue_style( 'bpmfp-css', plugins_url( 'bp-multiple-forum-post/bpmfp.css' ), array(), CAC_VERSION );
+		wp_enqueue_style( 'bpmfp-css', plugins_url( 'bp-multiple-forum-post/bpmfp.css' ), array(), BPMFP_VERSION );
 	}
 	return $return_message;
 }
