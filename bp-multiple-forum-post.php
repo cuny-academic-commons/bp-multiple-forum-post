@@ -53,7 +53,7 @@ function bpmfp_show_other_groups() {
 	}
 
 	// Bail if we're on a topic edit screen, or not in a group
-	if ( bbp_is_topic_edit() || empty( bp_get_current_group_id() ) ) {
+	if ( bbp_is_topic_edit() || 0 === bp_get_current_group_id() ) {
 		return;
 	}
 
@@ -98,15 +98,20 @@ add_action( 'bbp_theme_before_topic_form_submit_wrapper', 'bpmfp_show_other_grou
  * @uses bpmfp_create_duplicate_activities()
 **/
 function bpmfp_create_duplicate_topics( $args ) {
-	if ( empty( $topic_id = $args['topic-id'] ) )
+	if ( empty( $args['topic-id'] ) ||
+		empty( $args['topic-title'] ) ||
+		empty( $args['topic-content'] ) ||
+		empty( $args['groups-to-post-to'] ) ||
+		! is_array( $args['groups-to-post-to'] )
+	) {
 		return;
-	if ( empty( $groups_to_post_to = $args['groups-to-post-to'] ) || ! is_array( $groups_to_post_to ) )
-		return;
-	if ( empty( $topic_title = $args['topic-title'] ) )
-		return;
-	if ( empty( $topic_content = $args['topic-content'] ) )
-		return;
-	$topic_tags = $args['topic-tags'];
+	}
+
+	$topic_id          = $args['topic-id'];
+	$topic_tags        = $args['topic-tags'];
+	$topic_title       = $args['topic-title'];
+	$topic_content     = $args['topic-content'];
+	$groups_to_post_to = $args['groups-to-post-to'];
 
 	// An array to hold information about the duplicate topics, for creating
 	// activities for them later
