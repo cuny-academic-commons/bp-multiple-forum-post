@@ -19,17 +19,18 @@ class BPMFP_Async_Duplicate_Topic extends WP_Async_Task {
 	protected function prepare_data( $data ) {
 		// Check to make sure Buddypress is turned on
 		if ( false === function_exists( 'buddypress' ) ) {
+			throw new Exception( 'BuddyPress not active' );
+		}
+
+		if ( empty( $_POST['groups-to-post-to'] ) ) {
+			throw new Exception( 'BPMFP - No groups to post to' );
 			return;
 		}
-		$groups_to_post_to = $_POST['groups-to-post-to'];
-		if( empty( $groups_to_post_to ) ) {
-			return;
-		}
+
 		// Nonce check
 		if ( ! isset( $_POST['bp_multiple_forum_post'] )
 				|| ! wp_verify_nonce( $_POST['bp_multiple_forum_post'], 'post_to_multiple_forums' ) ) {
-			_e( 'Sorry, there was a problem verifying your request.', 'bp-multiple-forum-post' );
-			exit();
+			throw new Exception( 'BPMFP - Nonce failure' );
 		}
 
 		$topic_id = $data[0];
