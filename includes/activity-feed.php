@@ -24,7 +24,7 @@ function bpmfp_add_duplicate_topics_to_activity_action_string( $action, $display
 		} elseif ( bp_activity_get_meta( $displayed_activity->id, '_duplicate_of', true ) ) {
 			$get_duplicates_of = bp_activity_get_meta( $displayed_activity->id, '_duplicate_of', true );
 		}
-		// If we do have an original, get its duplicates, excluding the one being displayed
+
 		if ( isset( $get_duplicates_of ) ) {
 			$query_duplicates_of_original_activity = BP_Activity_Activity::get( array(
 				'exclude' => $displayed_activity->id,

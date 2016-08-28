@@ -113,8 +113,7 @@ function bpmfp_create_duplicate_topics( $args ) {
 	$topic_content     = $args['topic-content'];
 	$groups_to_post_to = $args['groups-to-post-to'];
 
-	// An array to hold information about the duplicate topics, for creating
-	// activities for them later
+	// An array to hold information about the duplicate topics, for creating activities for them later
 	$duplicate_topics = array();
 	foreach( $groups_to_post_to as $group_id ) {
 		if( ! groups_is_user_member( bp_loggedin_user_id(), $group_id ) ) {
@@ -123,10 +122,11 @@ function bpmfp_create_duplicate_topics( $args ) {
 		// Get the forum ID for the group to post the duplicate topic in
 		$group_forum_ids = groups_get_groupmeta( $group_id, 'forum_id' );
 		$group_forum_id = is_array( $group_forum_ids ) ? reset( $group_forum_ids ) : intval( $group_forum_ids );
+		
 		// Add tags to duplicate topic.
 		// Taken from bbp_new_topic_handler() in bbpress/includes/topics/functions.php
 		$terms = '';
-		if ( bbp_allow_topic_tags() && !empty( $topic_tags ) ) {
+		if ( bbp_allow_topic_tags() && ! empty( $topic_tags ) ) {
 			// Escape tag input
 			$terms = esc_attr( strip_tags( $topic_tags ) );
 			// Explode by comma
@@ -248,8 +248,7 @@ function bpmfp_create_duplicate_activities( $original_topic_id, $duplicate_topic
 	$bp = buddypress();
 	// Create the activities for the duplicate topics
 	foreach( $duplicate_topics as $duplicate_topic ) {
-		// We need to manually set the current BuddyPress group, because this is running in an
-		// asynchronous request.
+		// We need to manually set the current BuddyPress group, because this is running in an asynchronous request.
 		$bp->groups->current_group = groups_get_group( array( 'group_id' => $duplicate_topic['group_id'] ) );
 		$bbp_buddypress_activity = new BBP_BuddyPress_Activity;
 		$bbp_buddypress_activity->topic_create( $duplicate_topic['new_topic_id'], $duplicate_topic['group_forum_id'], array(), bp_loggedin_user_id() );
