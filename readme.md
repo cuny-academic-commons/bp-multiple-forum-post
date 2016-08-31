@@ -1,6 +1,6 @@
 # BP Multiple Forum Post
 
-**Contributors:** boonebgorges, rjbaniel
+**Contributors:** rjbaniel, boonebgorges, r-a-y, cuny-academic-commons
 
 **Tags:** buddypress, bbpress, forums, cross-post
 
@@ -32,5 +32,5 @@ Initial attachments and topic tags are copied to all of the created topics in ea
 
 ## Changelog
 
-= 0.1 =
+= 1.0.0 =
 * First release - basic cross-posting functionality
