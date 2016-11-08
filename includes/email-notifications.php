@@ -17,7 +17,7 @@ function bpmfp_add_duplicate_topics_to_email_notification( $content, $activity )
 	if ( empty( $all_topic_ids ) ) {
 		return $content;
 	}
-	$duplicate_post_message = "\n" . bpmfp_get_this_topic_also_posted_in_message( $all_topic_ids, 'email' );
+	$duplicate_post_message = "\n\n" . bpmfp_get_this_topic_also_posted_in_message( $all_topic_ids, 'email' );
 
 	return $content . $duplicate_post_message;
 }
