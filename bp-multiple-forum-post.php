@@ -139,8 +139,8 @@ function bpmfp_create_duplicate_topics( $args ) {
 		$topic_data = array(
 			// Parent of the topic is the forum itself, not the group
 			'post_parent' => $group_forum_id,
-			'post_content' => esc_attr( $topic_content ),
-			'post_title' => esc_attr( $topic_title ),
+			'post_content' => $topic_content,
+			'post_title' => $topic_title,
 			'tax_input' => $terms,
 		);
 		$topic_meta = array(
