@@ -58,16 +58,16 @@ function bpmfp_show_other_groups() {
 	}
 
 	wp_enqueue_script( 'bpmfp', plugins_url( 'bp-multiple-forum-post/bpmfp.js' ), array( 'jquery' ), BPMFP_VERSION, true );
-	
+
 	$user_id = bp_loggedin_user_id();
 	$user_groups = bpmfp_get_other_groups_for_user( $user_id );
-	if ( $user_groups['total'] > 0) {
+	if ( count( $user_groups ) > 0) {
 		echo '<div id="crosspost-div">';
 		echo '<fieldset>';
 		echo '<legend>' . __( 'Post to multiple groups:', 'bp-multiple-forum-post' ) . '</legend>';
 		echo "<div>" . __( 'By selecting other groups below, you can post this same topic on their forums at the same time.', 'bp-multiple-forum-post' ) . "</div>";
 		echo '<ul id="crosspost-groups">';
-		foreach( $user_groups['groups'] as $group ) {
+		foreach( $user_groups as $group ) {
 			if ( empty( $group->enable_forum ) ) {
 				continue;
 			}
@@ -116,7 +116,7 @@ function bpmfp_create_duplicate_topics( $args ) {
 	// An array to hold information about the duplicate topics, for creating activities for them later
 	$duplicate_topics = array();
 	foreach( $groups_to_post_to as $group_id ) {
-		if( ! groups_is_user_member( bp_loggedin_user_id(), $group_id ) ) {
+		if ( ! bpmfp_user_can_crosspost_to_group( bp_loggedin_user_id(), $group_id ) ) {
 			continue;
 		}
 		// Get the forum ID for the group to post the duplicate topic in

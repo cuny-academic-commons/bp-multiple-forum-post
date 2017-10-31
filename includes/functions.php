@@ -11,13 +11,25 @@ function bpmfp_get_other_groups_for_user( $user_id ) {
 	if ( ! $user_id || ! bp_get_current_group_id() ) {
 		return;
 	}
-	return groups_get_groups( array(
+
+	$raw_groups = groups_get_groups( array(
 		'user_id' => $user_id,
 		'per_page' => -1,
 		'type'=> 'alphabetical',
 		'show_hidden' => true,
 		'exclude' => array( bp_get_current_group_id() ),
 	) );
+
+	$groups = array();
+	foreach ( $raw_groups['groups'] as $group ) {
+		if ( ! bpmfp_user_can_crosspost_to_group( $user_id, $group->id ) ) {
+			continue;
+		}
+
+		$groups[] = $group;
+	}
+
+	return $groups;
 }
 
 /**
@@ -113,4 +125,24 @@ function bpmfp_get_forum_id_for_activity( $activity ) {
 	$activity_forum_ids = groups_get_groupmeta( $activity_group_id, 'forum_id' );
 	$activity_forum_id = is_array( $activity_forum_ids ) ? reset( $activity_forum_ids ) : intval( $activity_forum_ids );
 	return $activity_forum_id;
+}
+
+/**
+ * Checks whether a user can cross-post to a given group.
+ *
+ * @param int $user_id ID of the user.
+ * @param int $group_id ID of the group.
+ * @return bool
+ */
+function bpmfp_user_can_crosspost_to_group( $user_id, $group_id ) {
+	$can_crosspost = bp_current_user_can( 'bp_moderate' ) || groups_is_user_member( $user_id, $group_id );
+
+	/**
+	 * Filters whether a user can crosspost to a group.
+	 *
+	 * @param bool $can_crosspost
+	 * @param int  $user_id
+	 * @param int  $group_id
+	 */
+	return apply_filters( 'bpmfp_user_can_crosspost_to_group', $can_crosspost, $user_id, $group_id );
 }
