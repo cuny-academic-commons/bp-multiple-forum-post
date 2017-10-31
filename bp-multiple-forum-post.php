@@ -91,7 +91,7 @@ add_action( 'bbp_theme_before_topic_form_submit_wrapper', 'bpmfp_show_other_grou
  * updates bbpress metadata for the forums the topic is being cross-posted to,
  * uses metadata to save the relationship between original and duplicate topics,
  * and creates the BuddyPress Activities for the duplicate topics.
- * 
+ *
  * @param Array $args An array of arguments passed by BPMFP_Async_Duplicate_Topic::run_action()
  *
  * @see BPMFP_Async_Duplicate_Topic
@@ -122,7 +122,7 @@ function bpmfp_create_duplicate_topics( $args ) {
 		// Get the forum ID for the group to post the duplicate topic in
 		$group_forum_ids = groups_get_groupmeta( $group_id, 'forum_id' );
 		$group_forum_id = is_array( $group_forum_ids ) ? reset( $group_forum_ids ) : intval( $group_forum_ids );
-		
+
 		// Add tags to duplicate topic.
 		// Taken from bbp_new_topic_handler() in bbpress/includes/topics/functions.php
 		$terms = '';
@@ -212,7 +212,7 @@ add_action( 'wp_async_bbp_new_topic_post_extras', 'bpmfp_create_duplicate_topics
  *
  * Besides creating the duplicate activities, also saves the relationship between
  * original and duplicate activities in metadata, and sends the notification for
- * the original topic creation activity, which was interrupted earlier. 
+ * the original topic creation activity, which was interrupted earlier.
  *
  * @param int $original_topic_id The ID of the original topic being duplicated.
  * @param Array $duplicate_topics An Array of information about the duplicate topics
@@ -245,7 +245,7 @@ function bpmfp_create_duplicate_activities( $original_topic_id, $duplicate_topic
 	// Send the email for the original activity, which was interrupted earlier
 	$original_activity = new BP_Activity_Activity( $original_activity_id );
 	ass_group_notification_activity( $original_activity );
-	
+
 	$bp = buddypress();
 	// Create the activities for the duplicate topics
 	foreach( $duplicate_topics as $duplicate_topic ) {
