@@ -220,6 +220,7 @@ add_action( 'wp_async_bbp_new_topic_post_extras', 'bpmfp_create_duplicate_topics
 function bpmfp_create_duplicate_activities( $original_topic_id, $duplicate_topics ) {
 	// Get the activity for the original topic being duplicated
 	$original_activity_query_results = BP_Activity_Activity::get( array(
+		'show_hidden' => true,
 		'filter_query' => array(
 				'relation'	=> 'and',
 				array(
