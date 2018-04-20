@@ -66,7 +66,22 @@ function bpmfp_add_duplicate_topics_to_activity_action_string( $action, $display
 				$displayed_topic_link      = '<a href="' . $displayed_topic_permalink . '">' . $topic_title . '</a>';
 				
 				$displayed_forum_id = bpmfp_get_forum_id_for_activity( $displayed_activity );
-				$displayed_forum_name = get_post_field( 'post_title', $displayed_forum_id, 'raw' );
+
+				/**
+				 * Allow plugins to change the displayed forum name.
+				 *
+				 * @param string               $forum_name         Current forum name.
+				 * @param int                  $displayed_forum_id Current forum ID.
+				 * @param BP_Activity_Activity $displayed_activity Current activity.
+				 * @return string
+				 */
+				$displayed_forum_name = apply_filters(
+					'bpmfp_displayed_forum_name',
+					get_post_field( 'post_title', $displayed_forum_id, 'raw' ),
+					$displayed_forum_id,
+					$displayed_activity
+				);
+
 				$displayed_forum_permalink = bbp_get_forum_permalink( $displayed_forum_id );
 				$displayed_forum_link = '<a href="' . esc_url( $displayed_forum_permalink ) . '">' . $displayed_forum_name . '</a>';
 				
@@ -74,7 +89,22 @@ function bpmfp_add_duplicate_topics_to_activity_action_string( $action, $display
 				foreach( $activities_to_add as $activity_to_add ) {
 					$added_topic_permalink = bbp_get_topic_permalink( $activity_to_add->secondary_item_id );
 					$added_topic_forum_id = bpmfp_get_forum_id_for_activity( $activity_to_add );
-					$added_topic_forum_name = get_post_field( 'post_title', $added_topic_forum_id, 'raw' );
+
+					/**
+					 * Allow plugins to change the added topic forum name.
+					 *
+					 * @param string               $forum_name           This forum name.
+					 * @param int                  $added_topic_forum_id This forum ID.
+					 * @param BP_Activity_Activity $activity_to_add      This activity.
+					 * @return string
+					 */
+					$added_topic_forum_name = apply_filters(
+						'bpmfp_added_topic_forum_name',
+						get_post_field( 'post_title', $added_topic_forum_id, 'raw' ),
+						$added_topic_forum_id,
+						$activity_to_add
+					);
+
 					$added_topic_links[] = '<a href="' . esc_url( $added_topic_permalink ) . '">' . $added_topic_forum_name . "</a>";
 				}
 				$action = sprintf( esc_html__( '%1$s started the topic %2$s in the forums: %3$s, %4$s.', 'bp-multiple-forum-post' ), $topic_author_link, $displayed_topic_link, $displayed_forum_link, implode( ', ', $added_topic_links ) );
