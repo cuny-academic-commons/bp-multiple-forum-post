@@ -62,7 +62,7 @@ function bpmfp_add_duplicate_topics_to_activity_action_string( $action, $display
 			if ( count( $activities_to_add ) >= 1 ) {
 				$topic_author_link = bbp_get_user_profile_link( $displayed_activity->user_id  );
 				$displayed_topic_permalink = bbp_get_topic_permalink( $displayed_activity->secondary_item_id );
-				$topic_title = $displayed_activity->content;
+				$topic_title = bbp_get_topic_title( $displayed_activity->secondary_item_id );
 				$displayed_topic_link      = '<a href="' . $displayed_topic_permalink . '">' . $topic_title . '</a>';
 				
 				$displayed_forum_id = bpmfp_get_forum_id_for_activity( $displayed_activity );
