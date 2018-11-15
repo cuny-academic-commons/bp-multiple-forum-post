@@ -154,6 +154,8 @@ function bpmfp_remove_duplicate_activities_from_activity_stream( $activity, $r )
 			$original_activity_count = count( $activity_ids );
 
 			while( $deduped_activity_count < $original_activity_count ) {
+				$force_break = false;
+
 				// Start with the same arguments as the original query
 				$backfill_args = $r;
 				// Exclude all the activity items we've already queried
@@ -169,19 +171,25 @@ function bpmfp_remove_duplicate_activities_from_activity_stream( $activity, $r )
 				// We're using BP_Activity_Activity::get because the function we're in is hooked to bp_activity_get().
 				// so calling it would cause unnecessary and probably infinite recursion
 				$backfill = BP_Activity_Activity::get( $backfill_args );
+				if ( ! empty( $backfill['activities'] ) ) {
+					// Add the newly queried IDs to the exclude list
+					$backfill_ids = wp_list_pluck( $backfill['activities'], 'id' );
+					$exclude = array_merge( $exclude, $backfill_ids );
+					// Update the total queried activities count
+					$activity['total'] += $backfill['total'];
+					// Merge our backfilled items into the queried activities list
+					$activity['activities'] = array_merge( $activity['activities'], $backfill['activities'] );
 
-				// Add the newly queried IDs to the exclude list
-				$backfill_ids = wp_list_pluck( $backfill['activities'], 'id' );
-				$exclude = array_merge( $exclude, $backfill_ids );
-				// Update the total queried activities count
-				$activity['total'] += $backfill['total'];
-				// Merge our backfilled items into the queried activities list
-				$activity['activities'] = array_merge( $activity['activities'], $backfill['activities'] );
+					// To-do: This could probably be DRY-ed out using a do-while loop, but I think it works well for now
+					// Repeat the deduplication routine as above, with our newly merged array of activities
+					$merged_activity_ids = wp_list_pluck( $activity['activities'], 'id' );
+					$merged_activities_to_hide = bpmfp_get_duplicate_activities( $activity['activities'] );
+				} else {
+					$merged_activities_to_hide = wp_list_pluck( $activity['activities'], 'id' );
+					$deduped_activity_count = $original_activity_count;
+					$force_break = true;
+				}
 
-				// To-do: This could probably be DRY-ed out using a do-while loop, but I think it works well for now
-				// Repeat the deduplication routine as above, with our newly merged array of activities
-				$merged_activity_ids = wp_list_pluck( $activity['activities'], 'id' );
-				$merged_activities_to_hide = bpmfp_get_duplicate_activities( $activity['activities'] );
 				// We need to re-set the removed activities count here because we're going to re-use in the query
 				// above if the loop comes around again
 				$removed = 0;
@@ -193,11 +201,16 @@ function bpmfp_remove_duplicate_activities_from_activity_stream( $activity, $r )
 						}
 					}
 				}
+
 				// If we have more than originally queried after all the deduplication, cut it down
-				if( count( $activity['activities'] > $original_activity_count ) ) {
+				if( is_array( $activity['activities'] ) && ( count( $activity['activities'] ) > $original_activity_count ) ) {
 					$activity['activities'] = array_slice( $activity['activities'], 0, $original_activity_count );
 				}
 				// Update our current activity count, for use in the while-loop condition check at the top
+				if ( $force_break ) {
+					break;
+				}
+
 				$deduped_activity_count = count( $activity['activities'] );
 			}
 		}
