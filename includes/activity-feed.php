@@ -258,16 +258,21 @@ function bpmfp_get_duplicate_activities( $activities ) {
 			}
 			// If there are other duplicates of the same activity, hide them (regardless of if the original is in the queried activities or not)
 			$query_duplicates_of_original = BP_Activity_Activity::get( array(
-				'meta_query' => array( array(
-					'key' => '_duplicate_of',
-					'value' => $duplicate_of ) ) 
+				'fields'     => 'ids',
+				'meta_query' => array(
+					array(
+						'key'   => '_duplicate_of',
+						'value' => $duplicate_of,
+					),
+				)
 			) );
+
 			if ( ! empty( $query_duplicates_of_original['activities'] ) && is_array( $query_duplicates_of_original['activities'] ) ) {
 				$duplicates_of_original = $query_duplicates_of_original['activities'];
-				foreach( $duplicates_of_original as $duplicate_activity ) {
+				foreach( $duplicates_of_original as $duplicate_activity_id ) {
 					// If the duplicate activity is not the same as the activity we started with, and it's in the queried activities, hide it
-					if ( $duplicate_activity->id != $activity_item->id && in_array( $duplicate_activity->id, $activity_ids ) ) {
-						$duplicate_activities[] = $duplicate_activity->id;
+					if ( $duplicate_activity_id != $activity_item->id && in_array( $duplicate_activity_id, $activity_ids ) ) {
+						$duplicate_activities[] = $duplicate_activity_id;
 					}
 				}
 			}
