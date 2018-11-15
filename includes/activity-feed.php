@@ -2,11 +2,11 @@
 /**
  * In activity feeds, add links to the duplicates of a topic to its topic create activity's action string.
  *
- * If the activity being displayed is an original with duplicates, the function gets an Array of the 
+ * If the activity being displayed is an original with duplicates, the function gets an Array of the
  * duplicate topics. If it's a duplicate, if gets an Array of the other duplicates plus the original.
  * Then it reconstructs the activity string displayed to the user, adding links to the duplicate topics
  * and/or the original.
- * 
+ *
  * @param String $action The original action string, passed to the bp_get_activity_action filter.
  * @param BP_Activity_Activity $displayed_activity The activity being displayed in the feed.
  * @uses bpmfp_get_forum_id_for_activity()
@@ -64,7 +64,7 @@ function bpmfp_add_duplicate_topics_to_activity_action_string( $action, $display
 				$displayed_topic_permalink = bbp_get_topic_permalink( $displayed_activity->secondary_item_id );
 				$topic_title = bbp_get_topic_title( $displayed_activity->secondary_item_id );
 				$displayed_topic_link      = '<a href="' . $displayed_topic_permalink . '">' . $topic_title . '</a>';
-				
+
 				$displayed_forum_id = bpmfp_get_forum_id_for_activity( $displayed_activity );
 
 				/**
@@ -84,7 +84,7 @@ function bpmfp_add_duplicate_topics_to_activity_action_string( $action, $display
 
 				$displayed_forum_permalink = bbp_get_forum_permalink( $displayed_forum_id );
 				$displayed_forum_link = '<a href="' . esc_url( $displayed_forum_permalink ) . '">' . $displayed_forum_name . '</a>';
-				
+
 				$added_topic_links = array();
 				foreach( $activities_to_add as $activity_to_add ) {
 					$added_topic_permalink = bbp_get_topic_permalink( $activity_to_add->secondary_item_id );
@@ -117,7 +117,7 @@ add_filter( 'bp_get_activity_action', 'bpmfp_add_duplicate_topics_to_activity_ac
 
 /**
  * In activity feeds, only show the user the first activity associated with a topic that was cross-posted.
- * 
+ *
  * This way, users only see one entry, even if a topic was cross-posted to many groups that they're a part of.
  *
  * @param Array $activity The Array returned by bp_activity_get(), filtered by this function
@@ -134,6 +134,7 @@ function bpmfp_remove_duplicate_activities_from_activity_stream( $activity, $r )
 		$activity_ids = wp_list_pluck( $activity['activities'], 'id' );
 		$exclude = (array) $r['exclude'];
 		$exclude = array_merge( $exclude, $activity_ids );
+
 		// Get a list of the IDs of duplicate activities among the ones that have been queried
 		$activities_to_hide = bpmfp_get_duplicate_activities( $activity['activities'] );
 
