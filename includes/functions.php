@@ -84,19 +84,19 @@ function bpmfp_get_this_topic_also_posted_in_message( $topic_ids, $context = 'al
 
 		// If the group that the duplicate topic is in is public, or the current user is a member of it,
 		// or the current user is a moderator, then include a link to the topic.
+		// If conditional should encompass the entire routine so that hidden group names aren't shown.
 		if ( 'public' == $forum_group->status || groups_is_user_member( bp_loggedin_user_id(), $forum_group_id ) || current_user_can( 'bp_moderate' ) ) {
 			$topic_link = bbp_get_topic_permalink( $topic_ids[$index] );
-		}
-
-		$forum_name = get_post_field( 'post_title', $topic_forum_id, 'raw' );
-		if ( $forum_name ) {
-			$added_topic_link = esc_html( $forum_name );
-			if ( $topic_link && ( $context === 'forum_topic' || $context === 'email' ) ) {
-				$added_topic_link = ' <a href="' . esc_url( $topic_link ) . '">' . $added_topic_link . '</a>';
+			$forum_name = get_post_field( 'post_title', $topic_forum_id, 'raw' );
+			if ( $forum_name ) {
+				$added_topic_link = esc_html( $forum_name );
+				if ( $topic_link && ( $context === 'forum_topic' || $context === 'email' ) ) {
+					$added_topic_link = ' <a href="' . esc_url( $topic_link ) . '">' . $added_topic_link . '</a>';
+				}
 			}
-		}
-		if ( ! empty( $added_topic_link ) ) {
-			$added_topic_links[] = $added_topic_link;
+			if ( ! empty( $added_topic_link ) ) {
+				$added_topic_links[] = $added_topic_link;
+			}
 		}
 	}
 	$return_message = sprintf( esc_html__( 'This topic was also posted in: %1$s.', 'bp-multiple-forum-post' ), implode( ', ', $added_topic_links ) );
