@@ -99,11 +99,14 @@ function bpmfp_get_this_topic_also_posted_in_message( $topic_ids, $context = 'al
 			}
 		}
 	}
-	$return_message = sprintf( esc_html__( 'This topic was also posted in: %1$s.', 'bp-multiple-forum-post' ), implode( ', ', $added_topic_links ) );
-	if ( $context === 'forum_topic' ) {
-		$return_message = '<div class="posted-in-other-forums">' . $return_message . '</div>';
-	}
+	if( !empty($added_topic_links) ) {
+		$return_message = sprintf( esc_html__( 'This topic was also posted in: %1$s.', 'bp-multiple-forum-post' ), implode( ', ', $added_topic_links ) );
 
+		if ( $context === 'forum_topic' ) {
+			$return_message = '<div class="posted-in-other-forums">' . $return_message . '</div>';
+		}
+	}
+	
 	// Don't enqueue the styling if we're creating an email notification
 	if ( $context != 'email' ) {
 		wp_enqueue_style( 'bpmfp-css', plugins_url( 'bp-multiple-forum-post/bpmfp.css' ), array(), BPMFP_VERSION );
