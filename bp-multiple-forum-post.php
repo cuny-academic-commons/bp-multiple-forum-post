@@ -18,7 +18,7 @@ function bpmfp_init() {
 		require( plugin_dir_path( __FILE__ ) . 'includes/functions.php' );
 		require( plugin_dir_path( __FILE__ ) . 'includes/activity-feed.php' );
 		require( plugin_dir_path( __FILE__ ) . 'includes/email-notifications.php' );
-		bpmfp_register_async_action();
+		//bpmfp_register_async_action();
 	}
 }
 add_action( 'init', 'bpmfp_init' );
@@ -97,26 +97,46 @@ add_action( 'bbp_theme_before_topic_form_submit_wrapper', 'bpmfp_show_other_grou
  * @see BPMFP_Async_Duplicate_Topic
  * @uses bpmfp_create_duplicate_activities()
 **/
-function bpmfp_create_duplicate_topics( $args ) {
-	if ( empty( $args['topic-id'] ) ||
-		empty( $args['topic-title'] ) ||
-		empty( $args['topic-content'] ) ||
-		empty( $args['groups-to-post-to'] ) ||
-		! is_array( $args['groups-to-post-to'] )
-	) {
+function bpmfp_create_duplicate_topics( $topic_id ) {
+	if ( empty( $_POST['groups-to-post-to'] ) ) {
 		return;
 	}
 
-	$topic_id          = $args['topic-id'];
-	$topic_tags        = $args['topic-tags'];
-	$topic_title       = $args['topic-title'];
-	$topic_content     = $args['topic-content'];
-	$groups_to_post_to = $args['groups-to-post-to'];
+	// Nonce check
+	if ( ! isset( $_POST['bp_multiple_forum_post'] )
+			|| ! wp_verify_nonce( $_POST['bp_multiple_forum_post'], 'post_to_multiple_forums' ) ) {
+		return;
+	}
+
+	$topic_tags        = ! empty( $_POST['bbp_topic_tags'] ) ? $_POST['bbp_topic_tags'] : '';
+	$topic_title       = $_POST['bbp_topic_title'];
+	$topic_content     = $_POST['bbp_topic_content'];
+	$groups_to_post_to = $_POST['groups-to-post-to'];
+
+	if ( empty( $topic_id ) || empty( $topic_title ) || empty( $topic_content ) || ! is_array( $groups_to_post_to ) ) {
+		return;
+	}
+
+	// Schedule custom cron job to create our duplicate topics.
+	$r = [
+		'topic_id'   => $topic_id,
+		'topic_tags' => $topic_tags,
+		'group_ids'  => $groups_to_post_to
+	];
+	wp_schedule_single_event( time() + MINUTE_IN_SECONDS, 'bpmfp_trigger_create_topics', $r );
+}
+add_action( 'bbp_new_topic_post_extras', 'bpmfp_create_duplicate_topics' );
+
+/**
+ * Run duplicate topic routine on our custom cron job.
+ */
+add_action( 'bpmfp_trigger_create_topics', function( $topic_id, $topic_tags, $group_ids ) {
+	$topic = get_post( $topic_id );
 
 	// An array to hold information about the duplicate topics, for creating activities for them later
 	$duplicate_topics = array();
-	foreach( $groups_to_post_to as $group_id ) {
-		if ( ! bpmfp_user_can_crosspost_to_group( bp_loggedin_user_id(), $group_id ) ) {
+	foreach( $group_ids as $group_id ) {
+		if ( ! bpmfp_user_can_crosspost_to_group( $topic->post_author, $group_id ) ) {
 			continue;
 		}
 		// Get the forum ID for the group to post the duplicate topic in
@@ -138,9 +158,10 @@ function bpmfp_create_duplicate_topics( $args ) {
 		}
 		$topic_data = array(
 			// Parent of the topic is the forum itself, not the group
+			'post_author' => $topic->post_author,
 			'post_parent' => $group_forum_id,
-			'post_content' => $topic_content,
-			'post_title' => $topic_title,
+			'post_content' => $topic->post_content,
+			'post_title' => $topic->post_title,
 			'tax_input' => $terms,
 		);
 		$topic_meta = array(
@@ -204,9 +225,23 @@ function bpmfp_create_duplicate_topics( $args ) {
 		$topic_info['group_id'] = $group_id;
 		$duplicate_topics[] = $topic_info;
 	}
-	bpmfp_create_duplicate_activities( $topic_id, $duplicate_topics );
-}
-add_action( 'wp_async_bbp_new_topic_post_extras', 'bpmfp_create_duplicate_topics' );
+
+	// Schedule custom cron job to create our duplicate activity items.
+	$r = [
+		'topic_id'   => $topic_id,
+		'duplicates' => $duplicate_topics
+	];
+	wp_schedule_single_event( time() + MINUTE_IN_SECONDS, 'bpmfp_trigger_create_activity', $r );
+
+}, 10, 3 );
+
+/**
+ * Run duplicate activity routine on our custom cron job.
+ */
+add_action( 'bpmfp_trigger_create_activity', function( $topic_id, $duplicates ) {
+	bpmfp_create_duplicate_activities( $topic_id, $duplicates );
+}, 10, 2 );
+
 /**
  * Create BuddyPress Activities for duplicate topics.
  *
@@ -246,20 +281,21 @@ function bpmfp_create_duplicate_activities( $original_topic_id, $duplicate_topic
 	$original_activity = new BP_Activity_Activity( $original_activity_id );
 	ass_group_notification_activity( $original_activity );
 
-	$bp = buddypress();
+	$bp           = buddypress();
+	$bbp_activity = new BBP_BuddyPress_Activity;
+
 	// Create the activities for the duplicate topics
 	foreach( $duplicate_topics as $duplicate_topic ) {
 		// We need to manually set the current BuddyPress group, because this is running in an asynchronous request.
 		$bp->groups->current_group = groups_get_group( array( 'group_id' => $duplicate_topic['group_id'] ) );
-		$bbp_buddypress_activity = new BBP_BuddyPress_Activity;
-		$bbp_buddypress_activity->topic_create( $duplicate_topic['new_topic_id'], $duplicate_topic['group_forum_id'], array(), bp_loggedin_user_id() );
+		$bbp_activity->topic_create( $duplicate_topic['new_topic_id'], $duplicate_topic['group_forum_id'], array(), $original_activity->user_id );
+
 		// Update the last activity time for the group
 		groups_update_last_activity( $duplicate_topic['group_id'] );
 
 		// Give the duplicate topic creation activity a meta value pointing to the original activity
 		// for the topic being duplicated
 		$new_activity_id = get_post_meta( $duplicate_topic['new_topic_id'], '_bbp_activity_id', true );
-		$new_activity = new BP_Activity_Activity( $new_activity_id );
 		bp_activity_add_meta( $new_activity_id, '_duplicate_of', $original_activity_id );
 	}
 }
